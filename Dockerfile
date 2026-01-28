@@ -39,18 +39,15 @@ COPY . .
 
 RUN composer install --no-dev --no-scripts --optimize-autoloader
 
-# =========================
-# 5. Laravel permission
-# =========================
 RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
  && chmod -R 775 storage bootstrap/cache
 
 # =========================
-# 6. Expose Railway port
+# 5. Railway PORT (WAJIB)
 # =========================
-EXPOSE 8080
+EXPOSE 3000
 
 # =========================
-# 7. Start Laravel server
+# 6. START APP (PAKAI $PORT)
 # =========================
-CMD php artisan serve --host=0.0.0.0 --port=8080
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-3000}
