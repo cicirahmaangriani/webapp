@@ -1,38 +1,56 @@
-# Gunakan PHP 7.3 sesuai permintaan
 FROM php:7.3-cli
 
-# Install dependencies sistem
+# =========================
+# 1. System dependencies
+# =========================
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libpq-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    git \
-    curl \
-    && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
-    && docker-php-ext-install gd pdo pdo_pgsql zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    git unzip curl zip \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
+    libonig-dev libxml2-dev libzip-dev libpq-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-# 1. INSTALL COMPOSER VERSI 1 (Lebih stabil untuk library PHP lama)
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --1
+# =========================
+# 2. GD extension (dompdf)
+# =========================
+RUN docker-php-ext-configure gd \
+    --with-freetype-dir=/usr/include/ \
+    --with-jpeg-dir=/usr/include/ \
+ && docker-php-ext-install gd
+
+# =========================
+# 3. PHP extensions
+# =========================
+RUN docker-php-ext-install \
+    pdo \
+    pdo_mysql \
+    pdo_pgsql \
+    mbstring \
+    zip \
+    exif \
+    bcmath
+
+# =========================
+# 4. Composer
+# =========================
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
-
-# 2. COPY SOURCE CODE
 COPY . .
 
-# 3. JALANKAN COMPOSER INSTALL
-# Mantra --ignore-platform-reqs agar tidak rewel soal versi PHP 7.1 vs 7.3
-RUN composer install --no-dev --optimize-autoloader --no-interaction --ignore-platform-reqs
+RUN composer install --no-dev --no-scripts --optimize-autoloader
 
-# Set permissions
-RUN chmod -R 775 storage bootstrap/cache
+# =========================
+# 5. Laravel folders & permission
+# =========================
+RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
+ && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 8080
+# =========================
+# 6. Railway PORT
+# =========================
+EXPOSE 3000
 
-# Jalankan server
-CMD php -S 0.0.0.0:8080 -t public
+# =========================
+# 7. Start Laravel (WAJIB pakai $PORT)
+# =========================
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-3000}
