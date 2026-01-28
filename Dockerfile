@@ -1,26 +1,18 @@
 FROM php:7.3-cli
 
-# =========================
 # 1. System dependencies
-# =========================
 RUN apt-get update && apt-get install -y \
     git unzip curl zip \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     libonig-dev libxml2-dev libzip-dev libpq-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# =========================
-# 2. GD extension (dompdf)
-# =========================
+# 2. PHP extensions
 RUN docker-php-ext-configure gd \
     --with-freetype-dir=/usr/include/ \
     --with-jpeg-dir=/usr/include/ \
- && docker-php-ext-install gd
-
-# =========================
-# 3. PHP extensions
-# =========================
-RUN docker-php-ext-install \
+ && docker-php-ext-install \
+    gd \
     pdo \
     pdo_mysql \
     pdo_pgsql \
@@ -29,28 +21,28 @@ RUN docker-php-ext-install \
     exif \
     bcmath
 
-# =========================
-# 4. Composer
-# =========================
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+# 3. Install Composer v1 (WAJIB untuk Laravel lama)
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin \
+    --filename=composer \
+    --1
 
 WORKDIR /app
 COPY . .
 
-RUN composer install --no-dev --no-scripts --optimize-autoloader
+# 4. Composer install
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --optimize-autoloader \
+    --ignore-platform-reqs
 
-# =========================
-# 5. Laravel folders & permission
-# =========================
+# 5. Laravel permissions
 RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
  && chmod -R 775 storage bootstrap/cache
 
-# =========================
-# 6. Railway PORT
-# =========================
+# 6. Railway PORT (tidak wajib, tapi aman)
 EXPOSE 3000
 
-# =========================
-# 7. Start Laravel (WAJIB pakai $PORT)
-# =========================
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-3000}
+# 7. Start server (PALING PENTING)
+CMD php -S 0.0.0.0:${PORT} -t public
