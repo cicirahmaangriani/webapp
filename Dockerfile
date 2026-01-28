@@ -22,9 +22,12 @@ RUN docker-php-ext-install \
     zip
 
 # =========================
-# 3. Composer (AMAN UNTUK PHP 7.3)
+# 3. INSTALL COMPOSER V1 (INI PENTING)
 # =========================
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin \
+    --filename=composer \
+    --1
 
 WORKDIR /app
 COPY . .
@@ -39,11 +42,11 @@ RUN composer install \
     --ignore-platform-reqs
 
 # =========================
-# 5. Laravel permissions
+# 5. Permissions
 # =========================
 RUN chmod -R 775 storage bootstrap/cache
 
 # =========================
-# 6. Start Laravel (WAJIB $PORT)
+# 6. Start Laravel
 # =========================
 CMD php artisan serve --host=0.0.0.0 --port=$PORT
