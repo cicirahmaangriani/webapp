@@ -1,8 +1,6 @@
 FROM php:7.3-apache
 
-# --------------------------------------------------
-# 1. Install system dependencies
-# --------------------------------------------------
+# 1. System dependencies
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -17,17 +15,13 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# --------------------------------------------------
-# 2. Install GD (WAJIB untuk dompdf v0.7)
-# --------------------------------------------------
+# 2. Install GD (WAJIB untuk dompdf)
 RUN docker-php-ext-configure gd \
     --with-freetype-dir=/usr/include/ \
     --with-jpeg-dir=/usr/include/ \
  && docker-php-ext-install gd
 
-# --------------------------------------------------
-# 3. Install PHP extensions
-# --------------------------------------------------
+# 3. PHP extensions
 RUN docker-php-ext-install \
     pdo \
     pdo_mysql \
@@ -38,56 +32,38 @@ RUN docker-php-ext-install \
     pcntl \
     bcmath
 
-# --------------------------------------------------
 # 4. Enable Apache rewrite
-# --------------------------------------------------
 RUN a2enmod rewrite
 
-# --------------------------------------------------
-# 5. Install Composer
-# --------------------------------------------------
+# 5. FIX Apache MPM (INI PENTING)
+RUN a2dismod mpm_event mpm_worker || true \
+ && a2enmod mpm_prefork
+
+# 6. Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# --------------------------------------------------
-# 6. Set working directory
-# --------------------------------------------------
+# 7. Workdir
 WORKDIR /var/www/html
 
-# --------------------------------------------------
-# 7. Copy Laravel source code
-# --------------------------------------------------
+# 8. Copy source
 COPY . .
 
-# --------------------------------------------------
-# 8. Install PHP dependencies (TANPA artisan optimize)
-# --------------------------------------------------
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --optimize-autoloader
+# 9. Install dependencies (tanpa artisan optimize)
+RUN composer install --no-dev --no-scripts --optimize-autoloader
 
-# --------------------------------------------------
-# 9. Buat folder cache Laravel (WAJIB)
-# --------------------------------------------------
+# 10. Laravel cache folders
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/views \
     storage/framework/sessions \
     bootstrap/cache
 
-# --------------------------------------------------
-# 10. Set permission Laravel
-# --------------------------------------------------
+# 11. Permission
 RUN chown -R www-data:www-data /var/www/html \
  && chmod -R 775 storage bootstrap/cache
 
-# --------------------------------------------------
-# 11. Set Apache document root ke /public
-# --------------------------------------------------
+# 12. Apache document root ke /public
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
     /etc/apache2/sites-available/000-default.conf
 
-# --------------------------------------------------
-# 12. Expose port
-# --------------------------------------------------
 EXPOSE 80
