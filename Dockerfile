@@ -1,4 +1,4 @@
-FROM php:7.3-apache
+FROM php:7.3-cli
 
 # =========================
 # 1. System dependencies
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # =========================
-# 2. GD extension (dompdf)
+# 2. GD extension
 # =========================
 RUN docker-php-ext-configure gd \
     --with-freetype-dir=/usr/include/ \
@@ -30,35 +30,27 @@ RUN docker-php-ext-install \
     bcmath
 
 # =========================
-# 4. Apache config (AMAN)
-# =========================
-RUN a2dismod mpm_event mpm_worker || true \
- && a2enmod rewrite
-
-# =========================
-# 5. Composer
+# 4. Composer
 # =========================
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# =========================
-# 6. App
-# =========================
-WORKDIR /var/www/html
+WORKDIR /app
 COPY . .
 
 RUN composer install --no-dev --no-scripts --optimize-autoloader
 
 # =========================
-# 7. Permission Laravel
+# 5. Laravel permission
 # =========================
 RUN mkdir -p storage/framework/{cache,sessions,views} bootstrap/cache \
- && chown -R www-data:www-data /var/www/html \
  && chmod -R 775 storage bootstrap/cache
 
 # =========================
-# 8. Apache document root
+# 6. Expose Railway port
 # =========================
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
-    /etc/apache2/sites-available/000-default.conf
+EXPOSE 8080
 
-EXPOSE 80
+# =========================
+# 7. Start Laravel server
+# =========================
+CMD php artisan serve --host=0.0.0.0 --port=8080
