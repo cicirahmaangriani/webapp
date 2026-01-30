@@ -1,29 +1,35 @@
-FROM php:7.2-cli
+FROM php:7.4-fpm-bullseye
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git unzip curl zip \
     libpng-dev libjpeg-dev libfreetype6-dev \
     libonig-dev libxml2-dev libzip-dev libpq-dev \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install pdo pdo_pgsql mbstring zip exif pcntl gd \
  && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-configure gd \
-    --with-freetype-dir=/usr/include/ \
-    --with-jpeg-dir=/usr/include/ \
- && docker-php-ext-install gd pdo pdo_pgsql mbstring zip bcmath
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-COPY --from=composer:1 /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www
 
-WORKDIR /app
+# Copy project
 COPY . .
 
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# Install PHP dependencies
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction
 
-RUN mkdir -p \
-    storage/framework/cache \
+# FIX Laravel cache error
+RUN mkdir -p storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
     bootstrap/cache \
- && chmod -R 777 storage bootstrap/cache
+ && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 3000
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-3000}
+EXPOSE 8080
+
+CMD php artisan serve --host=0.0.0.0 --port=8080
